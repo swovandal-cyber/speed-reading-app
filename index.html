@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Speed Reading App</title>
+<meta name="description" content="Guided and one-word reading for EPUB, PDF, Word and pasted text. Everything stays on this device.">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F3F5F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F141A" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Speed Reader">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+
+  <section class="view" id="lib">
+    <header class="lib-head gut">
+      <p class="eyebrow">Speed Reading App · preview build</p>
+      <div class="lib-row">
+        <h1>Library</h1>
+        <div class="lib-actions">
+          <button class="btn" id="btnCheck" type="button">Speed check</button>
+          <button class="btn primary" id="btnAdd" type="button">Add</button>
+        </div>
+      </div>
+      <dl class="today">
+        <div><dt>Read today</dt><dd id="stMin">0 min</dd></div>
+        <div><dt>Words today</dt><dd id="stWords">0</dd></div>
+        <div><dt>Your speed</dt><dd id="stWpm">250 wpm</dd></div>
+      </dl>
+    </header>
+    <div class="lib-list gut" id="docList" role="list"></div>
+    <p class="lib-foot gut">Files you add are read on this device and are not uploaded.</p>
+  </section>
+
+  <section class="view" id="reader" hidden>
+    <header class="r-top gut">
+      <button class="link" id="btnBack" type="button">&#8249; Library</button>
+      <div class="seg" role="group" aria-label="Reading mode">
+        <button id="modeGuide" type="button" aria-pressed="true">Guide</button>
+        <button id="modeFocus" type="button" aria-pressed="false">Focus</button>
+      </div>
+      <button class="link" id="btnSettings" type="button">Settings</button>
+    </header>
+    <div class="gut"><div class="r-title" id="rTitle"></div></div>
+    <div class="stage" id="stage">
+      <div class="focus" id="focusPane">
+        <div class="window" id="window">
+          <span class="tick t"></span>
+          <div class="word" id="word"><span id="wPre"></span><span class="piv" id="wPiv"></span><span id="wPost"></span></div>
+          <div class="phrase" id="phrase" hidden><span id="phraseIn"></span></div>
+          <span class="tick b"></span>
+        </div>
+        <p class="context gut" id="context"></p>
+        <p class="hint" id="hint">Tap here to start</p>
+      </div>
+      <div class="guide gut" id="guidePane" hidden>
+        <div id="guideText"></div>
+        <button class="btn" id="btnNextWin" type="button">Continue</button>
+      </div>
+    </div>
+    <footer class="r-ctl gut">
+      <div class="scrub">
+        <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Position in the document">
+        <div class="scrub-meta"><span id="pct">0%</span><span id="left"></span></div>
+      </div>
+      <div class="transport">
+        <button class="tbtn" id="btnPrev" type="button" aria-label="Back one sentence"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 5h2.4v14H5zM20 5v14L9 12z" fill="currentColor"/></svg></button>
+        <button class="play" id="btnPlay" type="button" aria-label="Start reading"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path id="playIcon" d="M8 5v14l11-7z" fill="currentColor"/></svg></button>
+        <button class="tbtn" id="btnNext" type="button" aria-label="Forward one sentence"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M16.6 5H19v14h-2.4zM4 5v14l11-7z" fill="currentColor"/></svg></button>
+      </div>
+      <div class="row2">
+        <div class="stepper" role="group" aria-label="Reading speed">
+          <button id="wpmDown" type="button" aria-label="Slower">&minus;</button>
+          <output id="wpmOut">250 wpm</output>
+          <button id="wpmUp" type="button" aria-label="Faster">+</button>
+        </div>
+        <div class="row2-right">
+          <button class="btn" id="btnMark" type="button" aria-label="Mark this sentence">Mark</button>
+          <button class="btn" id="btnNotes" type="button">Notes <span id="noteCount"></span></button>
+        </div>
+      </div>
+    </footer>
+  </section>
+
+  <div class="scrim" id="sheetAdd" hidden>
+    <div class="sheet gut" role="dialog" aria-modal="true" aria-labelledby="addH">
+      <div class="sheet-head"><h2 id="addH">Add something to read</h2><button class="link" data-close type="button">Close</button></div>
+      <div class="field">
+        <label class="btn primary wide" for="fileIn" id="fileLabel" role="button" tabindex="0">Open a file</label>
+        <input class="vh" type="file" id="fileIn" tabindex="-1">
+        <p class="note">EPUB, PDF, Word (.docx) or plain text.</p>
+        <p class="note" id="addStatus" role="status"></p>
+        <p class="err" id="addErr" role="alert" hidden></p>
+      </div>
+      <div class="field">
+        <label for="pasteTitle">Or paste text</label>
+        <input type="text" id="pasteTitle" placeholder="Title (optional)" autocomplete="off">
+        <textarea id="pasteText" rows="5" placeholder="Paste an article, a web page or any other text"></textarea>
+        <button class="btn" id="btnPaste" type="button">Add pasted text</button>
+      </div>
+      <div class="callout">
+        <p><strong>Kindle books.</strong> <span id="kindleNote">Most Kindle books are copy-protected and open only in Amazon&rsquo;s own apps, so they cannot be opened here. A few are sold without protection. Amazon lets you download those as EPUB or PDF from Manage Your Content and Devices, and those files work here.</span></p>
+        <p><strong>Web pages.</strong> In this preview, copy the article text and paste it above. The finished app is meant to take a page straight from Safari&rsquo;s Share button.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrim" id="sheetSet" hidden>
+    <div class="sheet gut" role="dialog" aria-modal="true" aria-labelledby="setH">
+      <div class="sheet-head"><h2 id="setH">Reading settings</h2><button class="link" data-close type="button">Done</button></div>
+      <div class="field">
+        <label for="setWpm">Speed <output id="setWpmOut" for="setWpm"></output></label>
+        <input type="range" id="setWpm" min="100" max="900" step="10" value="250">
+        <div class="ruler" aria-hidden="true"><span>100</span><span>300</span><span>500</span><span>700</span><span>900</span></div>
+        <p class="note" id="speedNote">A typical adult reads non-fiction at about 240 words a minute. Past roughly one and a half times your own pace, expect to catch the gist and miss detail.</p>
+      </div>
+      <div class="field">
+        <div class="legend">Presets, set from your speed check</div>
+        <div class="chips" id="presets"></div>
+      </div>
+      <div class="field">
+        <div class="legend" id="chunkL">Words at a time</div>
+        <div class="seg wide" id="segChunk" role="group" aria-labelledby="chunkL"></div>
+      </div>
+      <div class="field">
+        <div class="legend" id="sizeL">Text size</div>
+        <div class="seg wide" id="segSize" role="group" aria-labelledby="sizeL"></div>
+      </div>
+      <div class="field">
+        <div class="legend" id="faceL">Typeface</div>
+        <div class="seg wide" id="segFace" role="group" aria-labelledby="faceL"></div>
+      </div>
+      <div class="toggles">
+        <label class="tog" for="tgPivot"><span>Red focus letter<small>Focus mode. Lines each word up on one red letter. Popular, but unproven in independent tests and claimed by a patent.</small></span><input type="checkbox" id="tgPivot"></label>
+        <label class="tog" for="tgPauses"><span>Pause at punctuation<small>A longer beat at commas, sentence ends and paragraphs.</small></span><input type="checkbox" id="tgPauses"></label>
+        <label class="tog" for="tgLong"><span>Slow down on long words<small>Extra time for long words and numbers.</small></span><input type="checkbox" id="tgLong"></label>
+        <label class="tog" for="tgBold"><span>Bold word beginnings<small id="boldNote">Guide mode. Popular in other apps. Independent tests found it does not speed up reading.</small></span><input type="checkbox" id="tgBold"></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrim" id="sheetNotes" hidden>
+    <div class="sheet gut" role="dialog" aria-modal="true" aria-labelledby="notesH">
+      <div class="sheet-head"><h2 id="notesH">Notes</h2><button class="link" data-close type="button">Close</button></div>
+      <div class="field">
+        <label for="blufText">Bottom line</label>
+        <textarea id="blufText" rows="3" placeholder="In a sentence or two: what was the main point?"></textarea>
+        <p class="note">Writing the point from memory is one of the best-tested ways to remember what you read.</p>
+      </div>
+      <div class="field">
+        <div class="legend">Marked sentences</div>
+        <div class="notes" id="notesList"></div>
+      </div>
+      <button class="btn primary" id="btnCopyNotes" type="button">Copy as a book note</button>
+      <textarea id="notesOut" rows="6" readonly hidden aria-label="Book note text"></textarea>
+    </div>
+  </div>
+
+  <div class="scrim" id="sheetCheck" hidden>
+    <div class="sheet gut" role="dialog" aria-modal="true" aria-labelledby="chkH">
+      <div class="sheet-head"><h2 id="chkH">Speed check</h2><button class="link" data-close type="button">Close</button></div>
+      <div class="steps" id="chk1">
+        <p>Read the passage at your normal pace, the way you read something you need to understand. Tap Done as soon as you finish. Three short questions follow.</p>
+        <button class="btn primary" id="chkStart" type="button">Start</button>
+      </div>
+      <div class="steps" id="chk2" hidden>
+        <div class="passage" id="chkText"></div>
+        <button class="btn primary" id="chkDone" type="button">Done</button>
+      </div>
+      <form class="steps" id="chk3" hidden>
+        <div class="quiz" id="chkQuiz"></div>
+        <button class="btn primary" type="submit">See my result</button>
+      </form>
+      <div class="steps" id="chk4" hidden>
+        <p class="result" id="chkResult"></p>
+        <p class="note" id="chkAdvice"></p>
+        <button class="btn primary" id="chkUse" type="button">Use this speed</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" role="status" hidden></div>
+</div>
+<script defer src="vendor/jszip.min.js"></script>
+<script defer src="vendor/pdf.min.js"></script>
+<script defer src="app.js"></script>
+</body>
+</html>

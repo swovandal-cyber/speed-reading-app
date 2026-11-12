@@ -1,0 +1,16 @@
+{
+  "name": "Speed Reading App",
+  "short_name": "Speed Reader",
+  "description": "Guided and one-word reading for EPUB, PDF, Word and pasted text. Everything stays on this device.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F5F8",
+  "theme_color": "#1C4E90",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

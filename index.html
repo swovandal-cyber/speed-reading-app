@@ -24,7 +24,7 @@
 
   <section class="view" id="lib">
     <header class="lib-head gut">
-      <p class="eyebrow">Speed Reading App · preview build</p>
+      <p class="eyebrow">Speed Reading App</p>
       <div class="lib-row">
         <h1>Library</h1>
         <div class="lib-actions">
@@ -38,8 +38,12 @@
         <div><dt>Your speed</dt><dd id="stWpm">250 wpm</dd></div>
       </dl>
     </header>
+    <button class="warn gut" id="libWarn" type="button" hidden></button>
     <div class="lib-list gut" id="docList" role="list"></div>
-    <p class="lib-foot gut">Files you add are read on this device and are not uploaded.</p>
+    <div class="lib-foot gut">
+      <p>Files you add are read on this device and are not uploaded.</p>
+      <button class="link" id="btnBackup" type="button">Backup</button>
+    </div>
   </section>
 
   <section class="view" id="reader" hidden>
@@ -103,6 +107,10 @@
         <p class="err" id="addErr" role="alert" hidden></p>
       </div>
       <div class="field">
+        <button class="btn wide" id="btnClip" type="button">Add from clipboard</button>
+        <p class="note">For web pages: copy the article (or run the Share-sheet Shortcut), then tap this.</p>
+      </div>
+      <div class="field">
         <label for="pasteTitle">Or paste text</label>
         <input type="text" id="pasteTitle" placeholder="Title (optional)" autocomplete="off">
         <textarea id="pasteText" rows="5" placeholder="Paste an article, a web page or any other text"></textarea>
@@ -110,7 +118,7 @@
       </div>
       <div class="callout">
         <p><strong>Kindle books.</strong> <span id="kindleNote">Most Kindle books are copy-protected and open only in Amazon&rsquo;s own apps, so they cannot be opened here. A few are sold without protection. Amazon lets you download those as EPUB or PDF from Manage Your Content and Devices, and those files work here.</span></p>
-        <p><strong>Web pages.</strong> In this preview, copy the article text and paste it above. The finished app is meant to take a page straight from Safari&rsquo;s Share button.</p>
+        <p><strong>Web pages.</strong> In Safari, open Reader view, select all, copy, then tap Add from clipboard here. A Share-sheet Shortcut can do the copying in one tap.</p>
       </div>
     </div>
   </div>
@@ -185,6 +193,32 @@
         <p class="result" id="chkResult"></p>
         <p class="note" id="chkAdvice"></p>
         <button class="btn primary" id="chkUse" type="button">Use this speed</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrim" id="sheetBackup" hidden>
+    <div class="sheet gut" role="dialog" aria-modal="true" aria-labelledby="bkH">
+      <div class="sheet-head"><h2 id="bkH">Backup and storage</h2><button class="link" data-close type="button">Close</button></div>
+      <div class="field">
+        <div class="legend">Storage on this device</div>
+        <p id="bkStorage"></p>
+      </div>
+      <div class="field">
+        <button class="btn primary wide" id="btnSaveBackup" type="button">Save a backup file</button>
+        <p class="note">One file with every document, your place in each, your notes and your settings. On the iPhone, choose Save to Files.</p>
+        <p class="note" id="bkLast"></p>
+      </div>
+      <div class="field">
+        <label class="btn wide" for="restoreIn" id="restoreLabel" role="button" tabindex="0">Restore from a backup file</label>
+        <input class="vh" type="file" id="restoreIn" tabindex="-1">
+        <p class="note">Puts back everything in the backup. Documents already here stay; one that is also in the backup is replaced by the backup&rsquo;s copy.</p>
+        <p class="note" id="bkStatus" role="status"></p>
+        <p class="err" id="bkErr" role="alert" hidden></p>
+      </div>
+      <div class="callout">
+        <p id="bkInstall"></p>
+        <p id="bkAbout"></p>
       </div>
     </div>
   </div>

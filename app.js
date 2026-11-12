@@ -1,5 +1,6 @@
 (() => {
 'use strict';
+const VERSION = '1.0';
 
 /* ---------- helpers ---------- */
 const $ = (id) => document.getElementById(id);
@@ -33,7 +34,7 @@ function count(words, ms) { const t = today(); t.w += words; t.ms += ms; statsDi
 
 /* ---------- sample texts ---------- */
 const SAMPLES = [
-  { id: 'sample-start', order: 0, title: 'Start here: how this reader works', text: `This is a preview of your speed-reading app. It runs in the browser on your phone, and it is here so you can try each reading tool and decide which ones you like.
+  { id: 'sample-start', order: 0, title: 'Start here: how this reader works', text: `This is your speed-reading app. Everything in it stays on this phone: there is no account, and nothing you read is uploaded.
 
 There are two ways to read. Guide shows the full page and moves a highlight through it at your chosen speed, so you can still see the sentence around each word. Of the two, it has the better research behind it, and it suits books and long documents. Focus shows one word or a short phrase at a time in the same spot, so your eyes can stay still. It suits short pieces. Switch between them at the top of the screen.
 
@@ -45,7 +46,9 @@ Settings holds the rest: how many words appear at once, the text size, pauses at
 
 When a sentence is worth keeping, tap Mark. Marked sentences collect under Notes. Notes also asks for the bottom line in your own words when you finish, and one tap copies everything as a book note.
 
-To read your own material, go back to the library and tap Add. You can open an EPUB, a PDF, a Word document or a text file, or paste text from a web page. The file is read on this device and is not uploaded.
+To read your own material, go back to the library and tap Add. You can open an EPUB, a PDF, a Word document or a text file, or add a web page you have copied. The file is read on this device and is not uploaded.
+
+One caution. The iPhone does not promise to keep what a Home Screen web app stores. Tap Backup at the bottom of the library after you add something you care about, and keep the file it saves.
 
 Run the speed check from the library to measure your normal pace. The presets in Settings are then set from that number.` },
   { id: 'sample-gettysburg', order: 1, title: 'The Gettysburg Address (Abraham Lincoln, 1863)', text: `Four score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal.
@@ -103,6 +106,7 @@ const DB = (() => {
     async add(meta, text) { metas.set(meta.id, meta); texts.set(meta.id, text); await run('texts', 'readwrite', (s) => s.put({ id: meta.id, text })); await run('docs', 'readwrite', (s) => s.put(meta)); },
     saveMeta(meta) { metas.set(meta.id, meta); return run('docs', 'readwrite', (s) => s.put(meta)); },
     async text(id) { if (texts.has(id)) return texts.get(id); const r = await run('texts', 'readonly', (s) => s.get(id)); const t = r ? r.text : null; if (t != null) texts.set(id, t); return t; },
+    async put(meta, text) { await this.add(meta, text); },
     async remove(id) { metas.delete(id); texts.delete(id); await run('docs', 'readwrite', (s) => s.delete(id)); await run('texts', 'readwrite', (s) => s.delete(id)); },
   };
 })();
@@ -278,7 +282,8 @@ async function readDocx(zip, fallbackTitle) {
   return { title: fallbackTitle, kind: 'Word', text: out.join('\n\n') };
 }
 async function readPdf(buf, fallbackTitle, progress) {
-  need(window.pdfjsLib, 'The PDF reader did not load. Check the connection, reload the page and try again.');
+  need(window.pdfjsLib, 'The PDF reader did not load. Close the app, open it again and try once more.');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
   let pdf;
   try { pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise; }
   catch (e) { throw new ReadError(e && e.name === 'PasswordException' ? 'This PDF is locked with a password and cannot be opened here.' : 'This PDF could not be read.'); }
@@ -344,7 +349,7 @@ async function readFile(file, progress) {
   const dot = name.lastIndexOf('.');
   const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
   const base = dot > 0 ? name.slice(0, dot) : name;
-  need(file.size <= 80 * 1024 * 1024, 'This file is larger than 80 MB, which is too big for the preview.');
+  need(file.size <= 80 * 1024 * 1024, 'This file is larger than 80 MB, which is too big for this app.');
   need(!['azw', 'azw3', 'azw4', 'kfx', 'mobi', 'prc'].includes(ext), 'This is a Kindle-format file. Kindle books are locked to Amazon’s own apps, so it cannot be opened here.');
   need(ext !== 'doc', 'Older .doc files are not supported. Save it as .docx in Word and try again.');
   need(ext !== 'pages', 'Pages files are not supported. Export it as Word or PDF and try again.');
@@ -352,7 +357,7 @@ async function readFile(file, progress) {
   const b = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
   if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return readPdf(buf, base, progress);
   if (b[0] === 0x50 && b[1] === 0x4B) {
-    need(window.JSZip, 'The file reader did not load. Check the connection, reload the page and try again.');
+    need(window.JSZip, 'The file reader did not load. Close the app, open it again and try once more.');
     let zip;
     try { zip = await window.JSZip.loadAsync(buf); } catch (e) { throw new ReadError('This file could not be opened.'); }
     if (zip.file('META-INF/container.xml') || ext === 'epub') return readEpub(zip, base, progress);
@@ -595,7 +600,7 @@ function setMode(mode) {
 let toastTimer = 0;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 1600); }
 function showView(name) { $('lib').hidden = name !== 'lib'; $('reader').hidden = name !== 'reader'; }
-const SHEETS = ['sheetAdd', 'sheetSet', 'sheetNotes', 'sheetCheck'];
+const SHEETS = ['sheetAdd', 'sheetSet', 'sheetNotes', 'sheetCheck', 'sheetBackup'];
 const sheetOpen = () => SHEETS.some((id) => !$(id).hidden);
 function closeSheets() { SHEETS.forEach((id) => { $(id).hidden = true; }); if (!$('lib').hidden) renderLibrary(); }
 function openSheet(id) { pause(); SHEETS.forEach((s) => { $(s).hidden = s !== id; }); const f = $(id).querySelector('button, [tabindex="0"], input, textarea'); if (f) f.focus({ preventScroll: true }); }
@@ -623,6 +628,7 @@ function renderLibrary() {
   $('stMin').textContent = Math.round(t.ms / 60000) + ' min';
   $('stWords').textContent = fmtInt(t.w);
   $('stWpm').textContent = S.wpm + ' wpm';
+  paintWarn();
 }
 async function openDoc(id) {
   const m = DB.meta(id); if (!m) return;
@@ -710,10 +716,142 @@ function openCheck() {
   chkStep(1); openSheet('sheetCheck');
 }
 
+/* ---------- backup, restore and storage ---------- */
+/* iOS does not promise to keep a web app's stored files, so the whole library can be saved
+   to one file and put back from it. Nothing leaves the phone unless the owner sends the file. */
+const BACKUP_APP = 'speed-reading-app';
+const standalone = () => navigator.standalone === true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+let persisted = null, offlineReady = false, pendingBackup = null;
+async function checkStorage(ask) {
+  try {
+    if (navigator.storage && navigator.storage.persisted) {
+      let p = await navigator.storage.persisted();
+      if (!p && ask && navigator.storage.persist) p = await navigator.storage.persist();
+      persisted = p;
+    }
+  } catch (e) { /* leave as unknown */ }
+  paintWarn();
+}
+const userDocs = () => DB.list().filter((m) => m.kind !== 'Sample');
+function unsaved() { const last = LS.get('sra.lastBackup', 0); return userDocs().filter((m) => m.added > last).length; }
+function paintWarn() {
+  const w = $('libWarn'), n = unsaved();
+  let msg = '';
+  if (!DB.persistent) msg = 'Storage is switched off in this browser window, so nothing you add will be kept after you close it.';
+  else if (!persisted) msg = 'This device has not promised to keep your library, and it can clear it without warning.';
+  if (n && DB.persistent) msg += (msg ? ' ' : '') + (n === 1 ? '1 document is' : n + ' documents are') + ' not in a backup yet.';
+  w.hidden = !msg; w.textContent = '';
+  if (msg) { w.append(el('b', '', 'Heads up. '), msg + ' ', el('u', '', 'Backup')); }
+}
+async function buildBackup() {
+  const docs = [];
+  for (const m of DB.list()) { const text = await DB.text(m.id); if (text != null) docs.push({ meta: m, text }); }
+  const data = { app: BACKUP_APP, format: 1, version: VERSION, exported: new Date().toISOString(), settings: S, stats, docs };
+  return new Blob([JSON.stringify(data)], { type: 'application/json' });
+}
+async function restoreBackup(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch (e) { throw new ReadError('This is not a backup file from this app.'); }
+  need(data && data.app === BACKUP_APP && Array.isArray(data.docs), 'This is not a backup file from this app.');
+  need(data.format === 1, 'This backup was made by a newer version of the app. Update the app, then restore.');
+  const cleanBefore = unsaved() === 0;
+  let n = 0;
+  for (const d of data.docs) {
+    const m = d && d.meta;
+    if (!m || typeof m.id !== 'string' || typeof d.text !== 'string') continue;
+    const text = clean(d.text), words = tokenize(text).n;
+    if (words < 1) continue;
+    const meta = {
+      id: m.id, title: String(m.title || 'Untitled').slice(0, 140), kind: String(m.kind || 'Text'),
+      added: Number(m.added) || Date.now(), opened: Number(m.opened) || 0, n: words,
+      pos: clamp(Number(m.pos) || 0, 0, words),
+      notes: Array.isArray(m.notes) ? m.notes.filter((x) => x && typeof x.text === 'string').map((x) => ({ i: Number(x.i) || 0, text: x.text })) : [],
+    };
+    if (typeof m.bluf === 'string') meta.bluf = m.bluf;
+    await DB.put(meta, text); n++;
+  }
+  if (data.settings && typeof data.settings === 'object') {
+    for (const k of Object.keys(DEFAULTS)) if (typeof data.settings[k] === typeof DEFAULTS[k]) S[k] = data.settings[k];
+    S.wpm = clamp(S.wpm, 100, 900); saveSettings();
+  }
+  if (data.stats && typeof data.stats === 'object') {
+    for (const [k, v] of Object.entries(data.stats)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !v) continue;
+      const mine = stats[k] || { w: 0, ms: 0 };
+      stats[k] = { w: Math.max(mine.w, Number(v.w) || 0), ms: Math.max(mine.ms, Number(v.ms) || 0) };
+    }
+    LS.set('sra.stats', stats);
+  }
+  LS.set('sra.seeded', true);
+  /* what was just restored is already in a backup file, so do not nag about it */
+  if (cleanBefore) LS.set('sra.lastBackup', Date.now());
+  return n;
+}
+function paintBackup() {
+  $('bkStorage').textContent = !DB.persistent ? 'Storage is switched off in this browser window (private browsing does this). Nothing you add will be kept.'
+    : persisted ? 'This device has agreed to keep your library. A backup file is still the only protection if the phone is lost or the app is deleted.'
+    : 'This device has not promised to keep your library. iOS can clear a web app’s storage without warning, for example when space runs low or the app goes unused. Save a backup file after you add books or notes you care about.';
+  const last = LS.get('sra.lastBackup', 0), n = unsaved();
+  $('bkLast').textContent = (last ? 'Last backup: ' + new Date(last).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) + '.' : 'No backup saved yet.')
+    + (n ? ' ' + (n === 1 ? '1 document' : n + ' documents') + ' added since.' : '');
+  $('bkInstall').textContent = standalone() ? 'Installed on the Home Screen.'
+    : 'To install on an iPhone: open this page in Safari, tap Share, then Add to Home Screen. The Home Screen app keeps its own library, separate from this browser tab, so add your books there.';
+  $('bkAbout').textContent = 'Version ' + VERSION + '. ' + (offlineReady ? 'Saved for use without a connection.' : 'Not yet saved for use without a connection.');
+  $('btnSaveBackup').textContent = pendingBackup ? 'Backup ready. Tap to save it' : 'Save a backup file';
+}
+function backupSaved() { pendingBackup = null; LS.set('sra.lastBackup', Date.now()); paintBackup(); paintWarn(); toast('Backup saved'); }
+async function saveBackup() {
+  $('bkErr').hidden = true;
+  try {
+    if (!pendingBackup) {
+      savePos();
+      const blob = await buildBackup();
+      pendingBackup = new File([blob], 'speed-reading-backup-' + dayKey() + '.json', { type: 'application/json' });
+    }
+    const file = pendingBackup;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); backupSaved(); return; }
+      catch (e) {
+        if (e && e.name === 'AbortError') { pendingBackup = null; paintBackup(); return; }
+        /* the phone wants a fresh tap before it will open the Share sheet */
+        if (e && e.name === 'NotAllowedError') { paintBackup(); return; }
+      }
+    }
+    const url = URL.createObjectURL(file), a = el('a');
+    a.href = url; a.download = file.name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    backupSaved();
+  } catch (err) { pendingBackup = null; const e = $('bkErr'); e.textContent = 'The backup could not be made.'; e.hidden = false; console.error(err); }
+}
+$('btnBackup').addEventListener('click', () => { pendingBackup = null; $('bkErr').hidden = true; $('bkStatus').textContent = ''; paintBackup(); openSheet('sheetBackup'); });
+$('libWarn').addEventListener('click', () => $('btnBackup').click());
+$('btnSaveBackup').addEventListener('click', saveBackup);
+$('restoreLabel').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('restoreIn').click(); } });
+$('restoreIn').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const err = $('bkErr'); err.hidden = true; $('bkStatus').textContent = 'Restoring…';
+  try {
+    const n = await restoreBackup(f);
+    $('bkStatus').textContent = n === 1 ? '1 document restored.' : n + ' documents restored.';
+    setWpm(S.wpm); applyLook(); paintBackup(); renderLibrary();
+  } catch (ex) {
+    $('bkStatus').textContent = '';
+    err.textContent = ex instanceof ReadError ? ex.message : 'This backup file could not be read.';
+    err.hidden = false;
+    if (!(ex instanceof ReadError)) console.error(ex);
+  }
+  e.target.value = '';
+});
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  navigator.serviceWorker.register('sw.js').catch(() => { /* the app still works online */ });
+  navigator.serviceWorker.ready.then(() => { offlineReady = true; if (!$('sheetBackup').hidden) paintBackup(); }).catch(() => {});
+}
+
 /* ---------- wiring ---------- */
 $('btnAdd').addEventListener('click', () => {
   $('addErr').hidden = true;
-  $('addStatus').textContent = window.JSZip && window.pdfjsLib ? '' : 'The file reader has not loaded. Check the connection and reload the page. Pasting text still works.';
+  $('addStatus').textContent = window.JSZip && window.pdfjsLib ? '' : 'The file reader has not loaded. Close the app and open it again. Pasting text still works.';
   openSheet('sheetAdd');
 });
 $('btnCheck').addEventListener('click', openCheck);
@@ -759,26 +897,38 @@ $('fileIn').addEventListener('change', async (e) => {
   try {
     await tickUI();
     const meta = await addDoc(await readFile(f, addStatus));
-    addStatus(''); closeSheets(); await openDoc(meta.id);
+    addStatus(''); closeSheets(); checkStorage(true); await openDoc(meta.id);
   } catch (err) { addError(err); }
   e.target.value = '';
 });
+/* Pasted or copied text. A short first line followed by a blank line is taken as the title
+   (the Share-sheet Shortcut sends a web page that way). */
+async function addPasted(raw, givenTitle) {
+  let text = clean(raw), title = (givenTitle || '').trim(), kind = 'Pasted';
+  const m = /^([^\n]{3,140})\n\n([\s\S]+)$/.exec(text);
+  if (!title && m && !/[.!?:]$/.test(m[1])) { title = m[1]; text = m[2]; kind = 'Web page'; }
+  if (!title) {
+    const first = text.split('\n')[0] || '';
+    title = first.split(' ').slice(0, 7).join(' ');
+    if (title.length > 60) title = title.slice(0, 57).trimEnd();
+    if (title && title.length < first.length) title += '…';
+  }
+  const meta = await addDoc({ title: title || 'Pasted text', kind, text });
+  $('pasteText').value = ''; $('pasteTitle').value = '';
+  closeSheets(); checkStorage(true); await openDoc(meta.id);
+}
 $('btnPaste').addEventListener('click', async () => {
-  const text = $('pasteText').value;
   $('addErr').hidden = true;
-  try {
-    const first = clean(text).split('\n')[0] || '';
-    let title = $('pasteTitle').value.trim();
-    if (!title) {
-      title = first.split(' ').slice(0, 7).join(' ');
-      if (title.length > 60) title = title.slice(0, 57).trimEnd();
-      if (title && title.length < first.length) title += '…';
-    }
-    title = title || 'Pasted text';
-    const meta = await addDoc({ title, kind: 'Pasted', text });
-    $('pasteText').value = ''; $('pasteTitle').value = '';
-    closeSheets(); await openDoc(meta.id);
-  } catch (err) { addError(err instanceof ReadError ? new ReadError('Paste some text first.') : err); }
+  try { await addPasted($('pasteText').value, $('pasteTitle').value); }
+  catch (err) { addError(err instanceof ReadError ? new ReadError('Paste some text first.') : err); }
+});
+$('btnClip').addEventListener('click', async () => {
+  $('addErr').hidden = true;
+  let text = '';
+  try { text = await navigator.clipboard.readText(); }
+  catch (e) { addError(new ReadError('The clipboard could not be read. Tap in the box below, choose Paste, then tap Add pasted text.')); return; }
+  try { await addPasted(text, ''); }
+  catch (err) { addError(err instanceof ReadError ? new ReadError('There is no text on the clipboard. Copy the article first.') : err); }
 });
 $('blufText').addEventListener('input', () => { if (doc) { doc.bluf = $('blufText').value; posDirty = true; } });
 $('btnCopyNotes').addEventListener('click', () => {
@@ -836,5 +986,6 @@ setInterval(() => { if (posDirty) savePos(); else if (statsDirty) { LS.set('sra.
     LS.set('sra.seeded', true);
   }
   renderLibrary();
+  checkStorage(true);
 })();
 })();

@@ -480,7 +480,12 @@ function showGuide(i, end) {
   if (i < G.a || i >= G.b) buildWindow(i);
   for (const s of G.cur) { s.classList.remove('cur'); s.classList.add('done'); }
   G.cur = [];
-  for (let k = i; k < Math.min(end, G.b); k++) { const s = G.spans[k - G.a]; s.classList.remove('done'); s.classList.add('cur'); G.cur.push(s); }
+  /* Keep the highlight on one line: stop the group at the last word on the first word's line.
+     The words left over become the next group, at the start of the next line. */
+  end = Math.min(end, G.b);
+  const lineTop = G.spans[i - G.a].offsetTop;
+  for (let k = i + 1; k < end; k++) { if (Math.abs(G.spans[k - G.a].offsetTop - lineTop) > 2) { end = k; break; } }
+  for (let k = i; k < end; k++) { const s = G.spans[k - G.a]; s.classList.remove('done'); s.classList.add('cur'); G.cur.push(s); }
   const first = G.cur[0];
   if (first) {
     const top = first.offsetTop;
@@ -490,6 +495,7 @@ function showGuide(i, end) {
       pane.scrollTo({ top: Math.max(0, top - pane.clientHeight * 0.33), behavior: playing && !reduceMotion ? 'smooth' : 'auto' });
     }
   }
+  return end;
 }
 function showContext() {
   const c = $('context'); c.textContent = '';
@@ -520,8 +526,8 @@ function render() {
 }
 function step() {
   if (!playing) return;
-  const end = chunkEnd(pos);
-  if (S.mode === 'focus') showFocus(pos, end); else showGuide(pos, end);
+  let end = chunkEnd(pos);
+  if (S.mode === 'focus') showFocus(pos, end); else end = showGuide(pos, end);
   paintMeta();
   const ms = msFor(pos, end) * (1 + 0.5 * Math.max(0, 1 - ramp / 5));
   ramp++;
